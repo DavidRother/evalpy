@@ -5,7 +5,6 @@ import os.path
 import uuid
 
 
-
 class Client:
 
     def __init__(self):
