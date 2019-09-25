@@ -1,5 +1,5 @@
 from . import sql_utilities
-from typing import Dict
+from typing import Dict, List
 
 import os.path
 import uuid
@@ -50,7 +50,9 @@ class Client:
         return self
 
     def end_run(self):
-        sql_utilities.add_row_to_main_table(self.db_connection, self.run_entry_dict)
+        final_entry_dict = {'run_id': self.active_run_id, 'experiment_name': self.experiment_name,
+                            **self.run_entry_dict}
+        sql_utilities.add_row_to_main_table(self.db_connection, final_entry_dict)
         for entry in self.run_step_entry_dicts:
             sql_utilities.add_row_to_run_table(self.db_connection, self.active_run_id, entry)
         self.db_connection.commit()
@@ -66,3 +68,48 @@ class Client:
 
     def log_step(self, entry_dict: Dict):
         self.run_step_entry_dicts[-1].update(entry_dict)
+
+    def get_stored_experiment_names(self):
+        return [item for item in set(sql_utilities.get_column_values(self.db_connection, 'experiment_name'))]
+
+    def get_all_stored_run_ids(self):
+        return [item for item in set(sql_utilities.get_column_values(self.db_connection, 'run_id'))]
+
+    def get_runs_by_experiment_names(self, experiment_names):
+        where_filters = [sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'experiment_name',
+                                                        sql_utilities.SQLOperator.EQUALS, experiment_names[0], False,
+                                                        False)]
+
+        where_filters.extend([sql_utilities.sql_where_filter(sql_utilities.SQLJunction.OR, 'experiment_name',
+                                                             sql_utilities.SQLOperator.EQUALS, name, False, False)
+                              for name in experiment_names[1:]])
+        return sql_utilities.get_column_values_filtered(self.db_connection, ['run_id'], 'params', where_filters)
+
+    def filtered_column_values_experiment(self, experiment_names, sql_filters: List[sql_utilities.sql_where_filter],
+                                          columns: List[str]):
+        if sql_filters:
+            name_filter = []
+            for idx, name in enumerate(experiment_names):
+                junction = sql_utilities.SQLJunction.AND if idx == 0 else sql_utilities.SQLJunction.OR
+                name_filter.append(sql_utilities.sql_where_filter(junction, 'experiment_name',
+                                                                  sql_utilities.SQLOperator.EQUALS, name, idx == 0,
+                                                                  idx == (len(experiment_names)-1)))
+        else:
+            name_filter = [sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'experiment_name',
+                                                          sql_utilities.SQLOperator.EQUALS, experiment_names[0], False,
+                                                          False)]
+
+            name_filter.extend([sql_utilities.sql_where_filter(sql_utilities.SQLJunction.OR, 'experiment_name',
+                                                               sql_utilities.SQLOperator.EQUALS, name, False, False)
+                                for name in experiment_names[1:]])
+        sql_filters.extend(name_filter)
+        return sql_utilities.get_column_values_filtered(self.db_connection, columns, 'params', sql_filters)
+
+    def filtered_column_values_run(self, run_id, sql_filters: List[sql_utilities.sql_where_filter], columns: List[str]):
+        return sql_utilities.get_column_values_filtered(self.db_connection, columns, run_id, sql_filters)
+
+    def column_names_of_experiments(self):
+        return sql_utilities.get_current_columns_of_table(self.db_connection, 'params')
+
+    def column_names_of_run(self, run_id):
+        return sql_utilities.get_current_columns_of_table(self.db_connection, run_id)
