@@ -53,7 +53,7 @@ class Client:
         final_entry_dict = {'run_id': self.active_run_id, 'experiment_name': self.experiment_name,
                             **self.run_entry_dict}
         sql_utilities.add_row_to_main_table(self.db_connection, final_entry_dict)
-        for entry in self.run_step_entry_dicts:
+        for entry in self.run_step_entry_dicts[:-1]:
             sql_utilities.add_row_to_run_table(self.db_connection, self.active_run_id, entry)
         self.db_connection.commit()
         self.active_run_id = None
@@ -66,8 +66,10 @@ class Client:
     def forward_step(self):
         self.run_step_entry_dicts.append({})
 
-    def log_step(self, entry_dict: Dict):
+    def log_step(self, entry_dict: Dict, step_forward=False):
         self.run_step_entry_dicts[-1].update(entry_dict)
+        if step_forward:
+            self.forward_step()
 
     def get_stored_experiment_names(self):
         return [item for item in set(sql_utilities.get_column_values(self.db_connection, 'experiment_name'))]

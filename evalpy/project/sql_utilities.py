@@ -101,7 +101,11 @@ def _add_data_row_to_table(cursor, params, table_name):
     placeholders = ', '.join('?' * len(params))
     sql = 'INSERT INTO {} ({}) VALUES ({})'.format(table_name, columns, placeholders)
     param_values = [int(v) if isinstance(v, bool) else v for v in params.values()]
-    cursor.execute(sql, param_values)
+    try:
+        cursor.execute(sql, param_values)
+    except sqlite3.OperationalError as e:
+        print(f'The following statement could not be resolved: {sql} || param values: {param_values}')
+        raise e
 
 
 def _build_where_clause_with_groups(where_filters: List[sql_where_filter]):

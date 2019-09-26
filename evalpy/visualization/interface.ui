@@ -520,6 +520,15 @@ QCheckBox::indicator:disabled, QRadioButton::indicator:disabled
                </item>
                <item row="1" column="0" colspan="2">
                 <widget class="QListWidget" name="list_widget_filter">
+                 <property name="dragEnabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="dragDropMode">
+                  <enum>QAbstractItemView::NoDragDrop</enum>
+                 </property>
+                 <property name="defaultDropAction">
+                  <enum>Qt::CopyAction</enum>
+                 </property>
                  <property name="selectionMode">
                   <enum>QAbstractItemView::ExtendedSelection</enum>
                  </property>
@@ -779,6 +788,15 @@ QCheckBox::indicator:disabled, QRadioButton::indicator:disabled
          </item>
          <item row="4" column="0" colspan="2">
           <widget class="QListWidget" name="list_widget_runs">
+           <property name="dragEnabled">
+            <bool>false</bool>
+           </property>
+           <property name="dragDropMode">
+            <enum>QAbstractItemView::NoDragDrop</enum>
+           </property>
+           <property name="defaultDropAction">
+            <enum>Qt::CopyAction</enum>
+           </property>
            <property name="selectionMode">
             <enum>QAbstractItemView::ExtendedSelection</enum>
            </property>
@@ -788,6 +806,9 @@ QCheckBox::indicator:disabled, QRadioButton::indicator:disabled
           <widget class="QLabel" name="label_results_number">
            <property name="text">
             <string>0</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -803,12 +824,8 @@ QCheckBox::indicator:disabled, QRadioButton::indicator:disabled
          </sizepolicy>
         </property>
         <layout class="QGridLayout" name="gridLayout_7">
-         <item row="1" column="0">
-          <widget class="QtCharts::QChartView" name="chart_view">
-           <property name="renderHints">
-            <set>QPainter::Antialiasing</set>
-           </property>
-          </widget>
+         <item row="0" column="0">
+          <widget class="PlotWidget" name="plot_widget" native="true"/>
          </item>
         </layout>
        </widget>
@@ -855,10 +872,10 @@ QCheckBox::indicator:disabled, QRadioButton::indicator:disabled
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QtCharts::QChartView</class>
-   <extends>QGraphicsView</extends>
-   <header location="global">QtCharts/QChartView&gt;
-#include &lt;QtCharts/chartsnamespace.h</header>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>pyqtgraph</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

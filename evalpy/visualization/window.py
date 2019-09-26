@@ -1,10 +1,8 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from PyQt5.QtChart import *
 from typing import List
 from .backend import Backend
 from ..project.sql_utilities import SQLOperator, SQLJunction
-import numpy as np
-
+import pyqtgraph as pg
 
 qt_creator_file = "interface.ui"  # Enter file here.
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qt_creator_file)
@@ -180,7 +178,10 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             filters.append(self.list_widget_filter.item(idx).data(QtCore.Qt.UserRole))
         experiment_names = self.get_selected_experiment_names()
         values = self.backend.get_filtered_column_values_experiments(experiment_names, filters, [x_axis, y_axis])
-        self._prepare_plot(values, x_axis, y_axis)
+        values = [item for item in values if None not in item]
+        x_values, y_values = zip(*values)
+        if x_values and y_values:
+            self._prepare_plot_experiment(x_values, y_values, x_axis, y_axis)
 
     def compute_run_plot(self):
         x_axis = self.combo_box_x_axis.currentText()
@@ -193,81 +194,52 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         run_ids = self.get_selected_run_ids()
         if not run_ids:
             return
-        values = self.backend.get_filtered_column_values_run(run_ids[0], filters, [x_axis, y_axis])
-        self._prepare_run_plot(values, x_axis, y_axis)
+        run_values_list = [self.backend.get_filtered_column_values_run(run_id, filters, [x_axis, y_axis])
+                           for run_id in run_ids]
+        run_values_list = [[item for item in run_values if None not in item] for run_values in run_values_list]
+        self._prepare_plot_runs(run_values_list, x_axis, y_axis)
 
-    def _prepare_plot(self, values, x_axis_name, y_axis_name):
-        # https://stackoverflow.com/questions/51338580/pyqtchart-not-displaying-data
-        a: QChartView = self.chart_view
-        chart = QChart(flags=a.windowFlags())
-        series = QScatterSeries()
-        series.setMarkerSize(10.0)
-        array_values = np.asarray(values)
-        x_min = min(array_values[:, 0])
-        x_max = max(array_values[:, 0])
-        y_min = min(array_values[:, 1])
-        y_max = max(array_values[:, 1])
-        for x, y in values:
-            if not x or not y:
-                continue
-            series.append(QtCore.QPointF(x, y))
-        chart.addSeries(series)
-        chart.setAnimationOptions(QChart.SeriesAnimations)
+    def _prepare_plot_experiment(self, x_values, y_values, x_axis_name, y_axis_name):
+        plot_widget: pg.PlotWidget = self.plot_widget
+        plot_widget.clear()
+        scatter = pg.ScatterPlotItem(pen=pg.mkPen(width=5, color='r'), symbol='o', size=1)
+        if isinstance(x_values[0], str):
+            final_x = self._prepare_string_axis(plot_widget, 'bottom', x_values, x_axis_name)
+        else:
+            final_x = self._prepare_number_axis(plot_widget, 'bottom', x_values, x_axis_name)
+            
+        if isinstance(y_values[0], str):
+            final_y = self._prepare_string_axis(plot_widget, 'left', y_values, y_axis_name)
+        else:
+            final_y = self._prepare_number_axis(plot_widget, 'left', y_values, y_axis_name)
 
-        # X Axis Settings
-        axis_x = QValueAxis()
-        axis_x.setLabelFormat("%.2f")
-        axis_x.setTitleText(x_axis_name)
-        chart.addAxis(axis_x, QtCore.Qt.AlignBottom)
-        series.attachAxis(axis_x)
+        plot_widget.addItem(scatter)
+        scatter.setData(final_x, final_y)
 
-        # Y Axis Settings
-        axis_y = QValueAxis()
-        axis_y.setLabelFormat("%.2f")
-        axis_y.setTitleText(y_axis_name)
-        chart.addAxis(axis_y, QtCore.Qt.AlignLeft)
-        series.attachAxis(axis_y)
-        scale_factor = 0.3
-        chart.axisX(series).setRange(x_min - scale_factor * np.abs(x_min - x_max),
-                                     x_max + scale_factor * np.abs(x_min - x_max))
-        chart.axisY(series).setRange(y_min - scale_factor * np.abs(y_min - y_max),
-                                     y_max + scale_factor * np.abs(y_min - y_max))
-        chart.legend().setVisible(False)
-        a.setChart(chart)
+    def _prepare_plot_runs(self, run_values_list, x_axis_name, y_axis_name):
+        plot_widget: pg.PlotWidget = self.plot_widget
+        plot_widget.clear()
+        self._set_axis_properties(plot_widget, 'bottom', x_axis_name, None)
+        self._set_axis_properties(plot_widget, 'left', y_axis_name, None)
+        for idx, run_values in enumerate(run_values_list):
+            x_values, y_values = zip(*run_values)
+            series = pg.PlotCurveItem(pen=pg.mkPen(width=1, color=pg.intColor(idx)))
+            plot_widget.addItem(series)
+            series.setData(list(x_values), list(y_values))
 
-    def _prepare_run_plot(self, values, x_axis_name, y_axis_name):
-        # https://stackoverflow.com/questions/51338580/pyqtchart-not-displaying-data
-        a: QChartView = self.chart_view
-        chart = QChart(flags=a.windowFlags())
-        series = QLineSeries()
-        array_values = np.asarray(values)
-        x_min = min(array_values[:, 0])
-        x_max = max(array_values[:, 0])
-        y_min = min(array_values[:, 1])
-        y_max = max(array_values[:, 1])
-        for x, y in values:
-            if not x or not y:
-                continue
-            series.append(x, y)
-        chart.addSeries(series)
-        chart.setAnimationOptions(QChart.SeriesAnimations)
+    def _prepare_string_axis(self, plot_widget, axis_side, values, axis_name):
+        tick_dict = {val: idx for idx, val in enumerate(set(values))}
+        transformed_values = [tick_dict[item] for item in values]
+        ticks = [list(enumerate(set(values)))]
+        self._set_axis_properties(plot_widget, axis_side, axis_name, ticks)
+        return transformed_values
 
-        # X Axis Settings
-        axis_x = QValueAxis()
-        axis_x.setLabelFormat("%.2f")
-        axis_x.setTitleText(x_axis_name)
-        chart.addAxis(axis_x, QtCore.Qt.AlignBottom)
-        series.attachAxis(axis_x)
+    def _prepare_number_axis(self, plot_widget, axis_side, values, axis_name):
+        self._set_axis_properties(plot_widget, axis_side, axis_name, None)
+        return values
 
-        # Y Axis Settings
-        axis_y = QValueAxis()
-        axis_y.setLabelFormat("%.2f")
-        axis_y.setTitleText(y_axis_name)
-        chart.addAxis(axis_y, QtCore.Qt.AlignLeft)
-        series.attachAxis(axis_y)
-        scale_factor = 0.3
-        chart.axisX(series).setRange(x_min - scale_factor * np.abs(x_min - x_max),
-                                     x_max + scale_factor * np.abs(x_min - x_max))
-        chart.axisY(series).setRange(y_min - scale_factor * np.abs(y_min - y_max),
-                                     y_max + scale_factor * np.abs(y_min - y_max))
-        a.setChart(chart)
+    @staticmethod
+    def _set_axis_properties(plot_widget, axis_side, axis_name, ticks):
+        axis = plot_widget.getAxis(axis_side)
+        axis.setTicks(ticks)
+        axis.setLabel(axis_name)
