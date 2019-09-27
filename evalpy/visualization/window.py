@@ -4,17 +4,13 @@ from .backend import Backend
 from ..project.sql_utilities import SQLOperator, SQLJunction
 import pyqtgraph as pg
 
-qt_creator_file = "interface.ui"  # Enter file here.
-Ui_MainWindow, QtBaseClass = uic.loadUiType(qt_creator_file)
 
+class MyWindow(QtWidgets.QMainWindow):
 
-class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
-
-    def __init__(self):
+    def __init__(self, file_path='interface.ui', icon_path='icons8-flip-chart-96.png'):
         QtWidgets.QMainWindow.__init__(self)
-        Ui_MainWindow.__init__(self)
-        self.setWindowIcon(QtGui.QIcon('icons8-flip-chart-96.png'))
-        self.setupUi(self)
+        uic.loadUi(file_path, self)
+        self.setWindowIcon(QtGui.QIcon(icon_path))
         self.backend = Backend()
         self.active_data = 'experiment'
         self.progress_bar.setValue(0)
