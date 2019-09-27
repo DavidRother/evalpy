@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="evalpy",
-    version="0.0.2",
+    version="0.0.3",
     author="David Rother",
     author_email="david@edv-drucksysteme.de",
     description="A lightweight framework to ",
