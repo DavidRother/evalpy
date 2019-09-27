@@ -5,5 +5,5 @@ include *.md
 include LICENSE.txt
 
 # Include the visualization files
-include visualization/interface.ui
-include visualization/icons8-flip-chart-96.png
+include evalpy/visualization/interface.ui
+include evalpy/visualization/icons8-flip-chart-96.png
