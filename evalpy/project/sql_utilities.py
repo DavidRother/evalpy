@@ -43,7 +43,8 @@ def create_main_table(connection):
     cursor.execute(sql_statement)
 
 
-def create_run_table(cursor, table_name):
+def create_run_table(connection, table_name):
+    cursor = connection.cursor()
     sql_statement = f""" CREATE TABLE IF NOT EXISTS {table_name} (
                                             step integer PRIMARY KEY
                                         ); """

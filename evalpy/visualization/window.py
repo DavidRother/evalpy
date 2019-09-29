@@ -2,6 +2,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from typing import List
 from .backend import Backend
 from ..project.sql_utilities import SQLOperator, SQLJunction
+from ..project import sql_utilities
 import pyqtgraph as pg
 
 
@@ -13,7 +14,6 @@ class MyWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(QtGui.QIcon(icon_path))
         self.backend = Backend()
         self.active_data = 'experiment'
-        self.progress_bar.setValue(0)
         self.populate_combo_boxes()
         self.actionLoad_Project.triggered.connect(self.get_directory_dialog)
         self.list_widget_experiments.itemSelectionChanged.connect(self.experiment_selection_changed)
@@ -23,7 +23,6 @@ class MyWindow(QtWidgets.QMainWindow):
         self.push_button_filter_remove.clicked.connect(self.remove_filter_items)
         self.push_button_compute_plot.clicked.connect(self.compute_plot)
         self.push_button_apply_filter_to_runs.clicked.connect(self.apply_filter_to_runs)
-        self.progress_bar.setValue(100)
 
     def switch_run_experiment_data(self):
         self.active_data = 'run' if self.active_data == 'experiment' else 'experiment'
@@ -75,15 +74,31 @@ class MyWindow(QtWidgets.QMainWindow):
         self.populate_axis_boxes()
 
     def run_selection_changed(self):
+        run_ids = self.get_selected_run_ids()
+        if not run_ids:
+            return
+        self.populate_table(run_ids[0])
         if self.active_data == 'experiment':
             return
         self.combo_box_entry.clear()
         self.line_edit_filter_value.setText('')
-        run_ids = self.get_selected_run_ids()
-        if not run_ids:
-            return
         self.populate_entry_combo_box()
         self.populate_axis_boxes()
+
+    def populate_table(self, run_id):
+        column_names = self.backend.get_column_names_of_experiments()
+        sql_filter = sql_utilities.sql_where_filter(SQLJunction.NONE, 'run_id', SQLOperator.EQUALS, run_id,
+                                                    False, False)
+        column_values = self.backend.get_filtered_column_values_experiments([], [sql_filter], column_names)
+        self.table_widget_run_params.setRowCount(len(column_names))
+        self.table_widget_run_params.setColumnCount(2)
+        sorted_entries = sorted(zip(column_names, column_values[0]), key=lambda x: x[0])
+        for row_idx, entry in enumerate(sorted_entries):
+            self.table_widget_run_params.setItem(row_idx, 0, QtWidgets.QTableWidgetItem(str(entry[0])))
+            try:
+                self.table_widget_run_params.setItem(row_idx, 1, QtWidgets.QTableWidgetItem(f'{entry[1]:.2f}'))
+            except (ValueError, TypeError):
+                self.table_widget_run_params.setItem(row_idx, 1, QtWidgets.QTableWidgetItem(str(entry[1])))
 
     def add_filter(self):
         junction = self.combo_box_junction.currentData()
@@ -123,7 +138,7 @@ class MyWindow(QtWidgets.QMainWindow):
             if not column_names:
                 return
             column_names = list(set().union(*column_names))
-        self.combo_box_entry.addItems(column_names)
+        self.combo_box_entry.addItems(sorted(column_names))
 
     def get_selected_experiment_names(self) -> List[str]:
         return [str(item.text()) for item in self.list_widget_experiments.selectedItems()]
@@ -148,15 +163,14 @@ class MyWindow(QtWidgets.QMainWindow):
         self.combo_box_y_axis.clear()
         if self.active_data == 'experiment':
             column_names = self.backend.get_column_names_of_experiments()
-            self.combo_box_x_axis.addItems(column_names)
         else:
             run_ids = self.get_selected_run_ids()
             column_names = [self.backend.get_column_names_of_run(run_id) for run_id in run_ids]
             if not column_names:
                 return
-            column_names = list(set().union(*column_names))
-            self.combo_box_x_axis.addItem('step')
-        self.combo_box_y_axis.addItems(column_names)
+            column_names = list(set().intersection(*column_names))
+        self.combo_box_x_axis.addItems(sorted(column_names))
+        self.combo_box_y_axis.addItems(sorted(column_names))
 
     def compute_plot(self):
         if self.active_data == 'experiment':
