@@ -887,25 +887,38 @@ QCheckBox::indicator:disabled, QRadioButton::indicator:disabled
      <string>Project</string>
     </property>
     <addaction name="actionLoad_Project"/>
+    <addaction name="separator"/>
+    <addaction name="actionExport_Data_Selection_as_csv"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
-     <string>Options</string>
+     <string>Database</string>
     </property>
-   </widget>
-   <widget class="QMenu" name="menuNo_Help">
-    <property name="title">
-     <string>No Help</string>
-    </property>
+    <addaction name="actionDelete_Experiment"/>
+    <addaction name="actionDelete_Run"/>
    </widget>
    <addaction name="menu_project_dialog"/>
    <addaction name="menuOptions"/>
-   <addaction name="menuNo_Help"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionLoad_Project">
    <property name="text">
     <string>Load Project</string>
+   </property>
+  </action>
+  <action name="actionDelete_Experiment">
+   <property name="text">
+    <string>Delete Experiment</string>
+   </property>
+  </action>
+  <action name="actionDelete_Run">
+   <property name="text">
+    <string>Delete Run</string>
+   </property>
+  </action>
+  <action name="actionExport_Data_Selection_as_csv">
+   <property name="text">
+    <string>Export Data Selection as csv</string>
    </property>
   </action>
  </widget>

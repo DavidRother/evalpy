@@ -24,6 +24,7 @@ setuptools.setup(
         'pyqt5>=5.9.2',
         'pyqtgraph>=0.10.0',
         'six>=1.12'
+        'pandas>=0.23.0'
     ],
     python_requires='>=3.6',
     entry_points='''

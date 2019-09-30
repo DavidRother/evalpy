@@ -31,6 +31,12 @@ class Backend:
     def get_filtered_column_values_run(self, run_id, sql_filters, columns):
         return self.client.filtered_column_values_run(run_id, sql_filters, columns)
 
+    def delete_experiment(self, experiment_name):
+        self.client.delete_experiment(experiment_name)
+
+    def delete_run(self, run_id):
+        self.client.delete_run(run_id)
+
     @staticmethod
     def get_filter_string_and_object(junction, entry, operator, value, start_bracket, end_bracket):
         filter_object = sql_utilities.sql_where_filter(junction, entry, operator, value, start_bracket, end_bracket)

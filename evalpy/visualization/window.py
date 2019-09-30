@@ -5,6 +5,8 @@ from ..project.sql_utilities import SQLOperator, SQLJunction
 from ..project import sql_utilities
 import pyqtgraph as pg
 import pyqtgraph.exporters
+import pandas as pd
+import numpy as np
 
 
 class MyWindow(QtWidgets.QMainWindow):
@@ -17,6 +19,9 @@ class MyWindow(QtWidgets.QMainWindow):
         self.active_data = 'experiment'
         self.populate_combo_boxes()
         self.actionLoad_Project.triggered.connect(self.get_directory_dialog)
+        self.actionExport_Data_Selection_as_csv.triggered.connect(self.export_data_selection_to_csv)
+        self.actionDelete_Experiment.triggered.connect(self.delete_experiment)
+        self.actionDelete_Run.triggered.connect(self.delete_run)
         self.list_widget_experiments.itemSelectionChanged.connect(self.experiment_selection_changed)
         self.list_widget_runs.itemSelectionChanged.connect(self.run_selection_changed)
         self.push_button_switch_data_view.clicked.connect(self.switch_run_experiment_data)
@@ -216,6 +221,7 @@ class MyWindow(QtWidgets.QMainWindow):
         run_ids = self.get_selected_run_ids()
         if not run_ids:
             return
+
         run_values_list = [self.backend.get_filtered_column_values_run(run_id, filters, [x_axis, y_axis])
                            for run_id in run_ids]
         run_values_list = [[item for item in run_values if None not in item] for run_values in run_values_list]
@@ -234,37 +240,90 @@ class MyWindow(QtWidgets.QMainWindow):
         if file_name.endswith('.png'):
             plot_item = self.plot_widget.getPlotItem()
             exporter = pg.exporters.ImageExporter(plot_item)
-            # For why this dance is needed see:
-            # https://github.com/pyqtgraph/pyqtgraph/issues/538
-            width = exporter.parameters()['width']
-            height = exporter.parameters()['height']
-            width = int(width)
-            height = int(height)
-            exporter.params.param('width').setValue(width + 1, blockSignal=exporter.widthChanged)
-            exporter.params.param('height').setValue(height + 1, blockSignal=exporter.heightChanged)
-            exporter.params.param('width').setValue(width, blockSignal=exporter.widthChanged)
-            exporter.params.param('height').setValue(height, blockSignal=exporter.heightChanged)
+            self._fix_pyqtgraph_image_exporter_bug(exporter)
         else:
             plot_item = self.plot_widget.getPlotItem()
             exporter = pg.exporters.SVGExporter(plot_item)
         exporter.export(file_name)
 
+    def export_data_selection_to_csv(self):
+        if self.active_data == 'experiment':
+            self.export_experiment_data_to_csv()
+        else:
+            self.export_run_data_to_csv()
+
+    def export_experiment_data_to_csv(self):
+        filters = []
+        for idx in range(self.list_widget_filter.count()):
+            filters.append(self.list_widget_filter.item(idx).data(QtCore.Qt.UserRole))
+        experiment_names = self.get_selected_experiment_names()
+        column_names = self.backend.get_column_names_of_experiments()
+        values = self.backend.get_filtered_column_values_experiments(experiment_names, filters, column_names)
+        for idx, row in enumerate(values):
+            values[idx] = [str(value) for value in row]
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Select File name',
+                                                             filter='CSV Files (*.csv)', options=options)
+        if not file_name or file_name == '(\'\', \'\')':
+            return
+        if not file_name.endswith('.csv'):
+            file_name += '.csv'
+        df = pd.DataFrame(values, columns=column_names)
+        df.to_csv(file_name)
+
+    def export_run_data_to_csv(self):
+        filters = []
+        for idx in range(self.list_widget_filter.count()):
+            filters.append(self.list_widget_filter.item(idx).data(QtCore.Qt.UserRole))
+        run_ids = self.get_selected_run_ids()
+        if not run_ids:
+            return
+        run_ids = self.get_selected_run_ids()
+        column_names = [self.backend.get_column_names_of_run(run_id) for run_id in run_ids]
+        run_values_list = [self.backend.get_filtered_column_values_run(run_id, filters, column_names[0])
+                           for run_id in run_ids]
+        data = run_values_list[0]
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Select File name',
+                                                             filter='CSV Files (*.csv)', options=options)
+        if not file_name or file_name == '(\'\', \'\')':
+            return
+        if not file_name.endswith('.csv'):
+            file_name += '.csv'
+        df = pd.DataFrame(data, columns=column_names[0])
+        df.to_csv(file_name)
+
+    def delete_experiment(self):
+        experiment_name, ok_pressed = QtWidgets.QInputDialog.getText(self, 'evalpy - Delete Experiment',
+                                                                     'Experiment name', QtWidgets.QLineEdit.Normal, "")
+        if ok_pressed:
+            self.backend.delete_experiment(experiment_name)
+
+    def delete_run(self):
+        run_id, ok_pressed = QtWidgets.QInputDialog.getText(self, 'evalpy - Delete Run', 'Run ID',
+                                                            QtWidgets.QLineEdit.Normal, "")
+        if ok_pressed:
+            self.backend.delete_run(run_id)
+
     def _prepare_plot_experiment(self, x_values, y_values, x_axis_name, y_axis_name):
         plot_widget: pg.PlotWidget = self.plot_widget
         plot_widget.clear()
         scatter = pg.ScatterPlotItem(pen=pg.mkPen(width=5, color='r'), symbol='o', size=1)
-        if isinstance(x_values[0], str):
-            final_x = self._prepare_string_axis(plot_widget, 'bottom', x_values, x_axis_name)
-        else:
-            final_x = self._prepare_number_axis(plot_widget, 'bottom', x_values, x_axis_name)
-            
-        if isinstance(y_values[0], str):
-            final_y = self._prepare_string_axis(plot_widget, 'left', y_values, y_axis_name)
-        else:
-            final_y = self._prepare_number_axis(plot_widget, 'left', y_values, y_axis_name)
-
+        transformed_x = self._transform_data_and_axis(plot_widget, x_values, x_axis_name)
+        transformed_y = self._transform_data_and_axis(plot_widget, y_values, y_axis_name)
         plot_widget.addItem(scatter)
-        scatter.setData(final_x, final_y)
+        try:
+            scatter.setData(transformed_x, transformed_y)
+        except TypeError as e:
+            print(e)
+
+    def _transform_data_and_axis(self, plot_widget, values, axis_name):
+        if isinstance(values[0], str):
+            return self._prepare_string_axis(plot_widget, 'bottom', values, axis_name)
+        else:
+            return self._prepare_number_axis(plot_widget, 'bottom', values, axis_name)
 
     def _prepare_plot_runs(self, run_values_list, x_axis_name, y_axis_name):
         plot_widget: pg.PlotWidget = self.plot_widget
@@ -293,3 +352,17 @@ class MyWindow(QtWidgets.QMainWindow):
         axis = plot_widget.getAxis(axis_side)
         axis.setTicks(ticks)
         axis.setLabel(axis_name)
+
+    @staticmethod
+    def _fix_pyqtgraph_image_exporter_bug(exporter):
+        # For why this dance is needed see:
+        # https://github.com/pyqtgraph/pyqtgraph/issues/538
+        width = exporter.parameters()['width']
+        height = exporter.parameters()['height']
+        width = int(width)
+        height = int(height)
+        exporter.params.param('width').setValue(width + 1, blockSignal=exporter.widthChanged)
+        exporter.params.param('height').setValue(height + 1, blockSignal=exporter.heightChanged)
+        exporter.params.param('width').setValue(width, blockSignal=exporter.widthChanged)
+        exporter.params.param('height').setValue(height, blockSignal=exporter.heightChanged)
+
