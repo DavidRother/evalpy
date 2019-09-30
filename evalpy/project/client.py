@@ -118,13 +118,29 @@ class Client:
         if step_forward:
             self.forward_step()
 
+    def delete_experiment(self, experiment_name: str):
+        run_ids = self.get_runs_by_experiment_names([experiment_name])
+        where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'experiment_name',
+                                                      sql_utilities.SQLOperator.EQUALS, experiment_name, False, False)
+        sql_utilities.delete_rows(self.db_connection, 'params', [where_filter])
+        for run_id in run_ids:
+            sql_utilities.delete_table(self.db_connection, run_id)
+        self.db_connection.commit()
+
+    def delete_run(self, run_id):
+        where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'run_id',
+                                                      sql_utilities.SQLOperator.EQUALS, run_id, False, False)
+        sql_utilities.delete_rows(self.db_connection, 'params', [where_filter])
+        sql_utilities.delete_table(self.db_connection, run_id)
+        self.db_connection.commit()
+
     def get_stored_experiment_names(self):
         return [item for item in set(sql_utilities.get_column_values(self.db_connection, 'experiment_name'))]
 
     def get_all_stored_run_ids(self):
         return [item for item in set(sql_utilities.get_column_values(self.db_connection, 'run_id'))]
 
-    def get_runs_by_experiment_names(self, experiment_names):
+    def get_runs_by_experiment_names(self, experiment_names: List[str]):
         where_filters = [sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'experiment_name',
                                                         sql_utilities.SQLOperator.EQUALS, experiment_names[0], False,
                                                         False)]
@@ -134,8 +150,8 @@ class Client:
                               for name in experiment_names[1:]])
         return sql_utilities.get_column_values_filtered(self.db_connection, ['run_id'], 'params', where_filters)
 
-    def filtered_column_values_experiment(self, experiment_names, sql_filters: List[sql_utilities.sql_where_filter],
-                                          columns: List[str]):
+    def filtered_column_values_experiment(self, experiment_names: List[str],
+                                          sql_filters: List[sql_utilities.sql_where_filter], columns: List[str]):
         if sql_filters:
             name_filter = []
             for idx, name in enumerate(experiment_names):

@@ -4,6 +4,7 @@ from .backend import Backend
 from ..project.sql_utilities import SQLOperator, SQLJunction
 from ..project import sql_utilities
 import pyqtgraph as pg
+import pyqtgraph.exporters
 
 
 class MyWindow(QtWidgets.QMainWindow):
@@ -23,6 +24,7 @@ class MyWindow(QtWidgets.QMainWindow):
         self.push_button_filter_remove.clicked.connect(self.remove_filter_items)
         self.push_button_compute_plot.clicked.connect(self.compute_plot)
         self.push_button_apply_filter_to_runs.clicked.connect(self.apply_filter_to_runs)
+        self.push_button_export_plot.clicked.connect(self.export_plot)
 
     def switch_run_experiment_data(self):
         self.active_data = 'run' if self.active_data == 'experiment' else 'experiment'
@@ -52,7 +54,9 @@ class MyWindow(QtWidgets.QMainWindow):
         self.list_widget_runs.addItems(new_run_ids)
 
     def get_directory_dialog(self):
-        directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory'))
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory', options=options))
         if not directory:
             return
         name = self.backend.load_database(directory)
@@ -137,7 +141,10 @@ class MyWindow(QtWidgets.QMainWindow):
             column_names = [self.backend.get_column_names_of_run(run_id) for run_id in run_ids]
             if not column_names:
                 return
-            column_names = list(set().union(*column_names))
+            elif len(column_names) == 1:
+                column_names = column_names[0]
+            else:
+                column_names = list(set(column_names[0]).intersection(*column_names[1:]))
         self.combo_box_entry.addItems(sorted(column_names))
 
     def get_selected_experiment_names(self) -> List[str]:
@@ -168,7 +175,10 @@ class MyWindow(QtWidgets.QMainWindow):
             column_names = [self.backend.get_column_names_of_run(run_id) for run_id in run_ids]
             if not column_names:
                 return
-            column_names = list(set().intersection(*column_names))
+            elif len(column_names) == 1:
+                column_names = column_names[0]
+            else:
+                column_names = list(set(column_names[0]).intersection(*column_names[1:]))
         self.combo_box_x_axis.addItems(sorted(column_names))
         self.combo_box_y_axis.addItems(sorted(column_names))
 
@@ -189,6 +199,8 @@ class MyWindow(QtWidgets.QMainWindow):
         experiment_names = self.get_selected_experiment_names()
         values = self.backend.get_filtered_column_values_experiments(experiment_names, filters, [x_axis, y_axis])
         values = [item for item in values if None not in item]
+        if not values:
+            return
         x_values, y_values = zip(*values)
         if x_values and y_values:
             self._prepare_plot_experiment(x_values, y_values, x_axis, y_axis)
@@ -208,6 +220,34 @@ class MyWindow(QtWidgets.QMainWindow):
                            for run_id in run_ids]
         run_values_list = [[item for item in run_values if None not in item] for run_values in run_values_list]
         self._prepare_plot_runs(run_values_list, x_axis, y_axis)
+
+    def export_plot(self):
+        # , filter='svg(*.svg)'
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Select File name',
+                                                             filter='Image Files (*.svg *.png)', options=options)
+        if not file_name or file_name == '(\'\', \'\')':
+            return
+        if not (file_name.endswith('.svg') or file_name.endswith('.png')):
+            file_name += '.svg'
+        if file_name.endswith('.png'):
+            plot_item = self.plot_widget.getPlotItem()
+            exporter = pg.exporters.ImageExporter(plot_item)
+            # For why this dance is needed see:
+            # https://github.com/pyqtgraph/pyqtgraph/issues/538
+            width = exporter.parameters()['width']
+            height = exporter.parameters()['height']
+            width = int(width)
+            height = int(height)
+            exporter.params.param('width').setValue(width + 1, blockSignal=exporter.widthChanged)
+            exporter.params.param('height').setValue(height + 1, blockSignal=exporter.heightChanged)
+            exporter.params.param('width').setValue(width, blockSignal=exporter.widthChanged)
+            exporter.params.param('height').setValue(height, blockSignal=exporter.heightChanged)
+        else:
+            plot_item = self.plot_widget.getPlotItem()
+            exporter = pg.exporters.SVGExporter(plot_item)
+        exporter.export(file_name)
 
     def _prepare_plot_experiment(self, x_values, y_values, x_axis_name, y_axis_name):
         plot_widget: pg.PlotWidget = self.plot_widget
@@ -249,7 +289,7 @@ class MyWindow(QtWidgets.QMainWindow):
         return values
 
     @staticmethod
-    def _set_axis_properties(plot_widget, axis_side, axis_name, ticks):
+    def _set_axis_properties(plot_widget, axis_side, axis_name, ticks=None):
         axis = plot_widget.getAxis(axis_side)
         axis.setTicks(ticks)
         axis.setLabel(axis_name)

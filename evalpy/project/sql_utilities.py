@@ -81,6 +81,23 @@ def get_column_values_filtered(connection, target_columns: List[str], table: str
     return cursor.fetchall()
 
 
+def delete_rows(connection, table, where_filters):
+    cursor = connection.cursor()
+    table = escape(table)
+    where_clause = _build_where_clause_with_groups(where_filters)
+    sql_statement = f'DELETE FROM {table} {where_clause}'
+    cursor.execute(sql_statement)
+
+
+def delete_table(connection, table):
+    cursor = connection.cursor()
+    table = escape(table)
+    if table == 'params':
+        raise ValueError('Dropping the table params is not allowed')
+    sql_statement = f'DROP TABLE IF EXISTS {table}'
+    cursor.execute(sql_statement)
+
+
 def _correct_column_scheme(connection, params, table_name):
     cursor = connection.cursor()
     current_columns = get_current_columns_of_table(connection, table_name)

@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.6",
     author="David Rother",
     author_email="david@edv-drucksysteme.de",
-    description="A lightweight framework to ",
+    description="A lightweight framework for experiment logging and automatic visualization",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/DavidRother/evalpy",
