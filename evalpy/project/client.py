@@ -185,6 +185,6 @@ class Client:
     @staticmethod
     def _convert_dict(table_entries: Dict):
         for key, value in table_entries.items():
-            if sql_utilities.type_translation[value] == 'blob':
+            if sql_utilities.type_translation[type(value)] == 'blob':
                 table_entries[key] = pickle.dumps(value)
         return table_entries
