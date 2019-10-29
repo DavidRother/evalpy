@@ -72,6 +72,8 @@ class MyWindow(QtWidgets.QMainWindow):
     def experiment_selection_changed(self):
         self.list_widget_runs.clear()
         self.combo_box_entry.clear()
+        self.combo_box_x_axis.clear()
+        self.combo_box_y_axis.clear()
         self.line_edit_filter_value.setText('')
         experiment_names = self.get_selected_experiment_names()
         if not experiment_names:
@@ -225,6 +227,8 @@ class MyWindow(QtWidgets.QMainWindow):
         run_values_list = [self.backend.get_filtered_column_values_run(run_id, filters, [x_axis, y_axis])
                            for run_id in run_ids]
         run_values_list = [[item for item in run_values if None not in item] for run_values in run_values_list]
+        if run_values_list == [[]]:
+            return
         self._prepare_plot_runs(run_values_list, x_axis, y_axis)
 
     def export_plot(self):
