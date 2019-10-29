@@ -29,7 +29,7 @@ A minimal usage outline is as follows
     
     
     evalpy.set_project('my_first_project_path', 'my_project_folder_name')
-    with evalpy.start_run('experiment_name')
+    with evalpy.start_run('experiment_name'):
         for log_step_stuff in model_training():
             evalpy.log_run_step(log_step_stuff, step_forward=True)  
         evalpy.log_run_entries(model_parameters_and_metrics)  # both methods expect a dict as input
