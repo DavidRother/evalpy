@@ -72,6 +72,8 @@ class MyWindow(QtWidgets.QMainWindow):
     def experiment_selection_changed(self):
         self.list_widget_runs.clear()
         self.combo_box_entry.clear()
+        self.combo_box_x_axis.clear()
+        self.combo_box_y_axis.clear()
         self.line_edit_filter_value.setText('')
         experiment_names = self.get_selected_experiment_names()
         if not experiment_names:
