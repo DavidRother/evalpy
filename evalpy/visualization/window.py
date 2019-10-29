@@ -227,6 +227,8 @@ class MyWindow(QtWidgets.QMainWindow):
         run_values_list = [self.backend.get_filtered_column_values_run(run_id, filters, [x_axis, y_axis])
                            for run_id in run_ids]
         run_values_list = [[item for item in run_values if None not in item] for run_values in run_values_list]
+        if run_values_list == [[]]:
+            return
         self._prepare_plot_runs(run_values_list, x_axis, y_axis)
 
     def export_plot(self):
