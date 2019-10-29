@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 import os.path
 import uuid
+import pickle
 
 
 class Client:
@@ -92,7 +93,8 @@ class Client:
             raise TypeError('Expected a Dictionary to add entries to the current run')
         if self.active_run_id is None:
             raise Exception("No active run ongoing")
-        self.run_entry_dict.update(entry_dict)
+        converted_dict = self._convert_dict(entry_dict)
+        self.run_entry_dict.update(converted_dict)
 
     def forward_step(self):
         """
@@ -114,7 +116,8 @@ class Client:
             raise TypeError('Expected a Dictionary to add entries to the current run')
         if self.active_run_id is None:
             raise Exception("No active run ongoing")
-        self.run_step_entry_dicts[-1].update(entry_dict)
+        converted_dict = self._convert_dict(entry_dict)
+        self.run_step_entry_dicts[-1].update(converted_dict)
         if step_forward:
             self.forward_step()
 
@@ -178,3 +181,10 @@ class Client:
 
     def column_names_of_run(self, run_id):
         return sql_utilities.get_current_columns_of_table(self.db_connection, run_id)
+
+    @staticmethod
+    def _convert_dict(table_entries: Dict):
+        for key, value in table_entries.items():
+            if sql_utilities.type_translation[value] == 'blob':
+                table_entries[key] = pickle.dumps(value)
+        return table_entries
