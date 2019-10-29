@@ -64,6 +64,9 @@ class MyWindow(QtWidgets.QMainWindow):
         directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory', options=options))
         if not directory:
             return
+        self.set_project_database(directory)
+
+    def set_project_database(self, directory):
         name = self.backend.load_database(directory)
         self.label_project_name.setText(name)
         experiment_names = self.backend.get_experiment_names()
