@@ -121,6 +121,13 @@ class Client:
         if step_forward:
             self.forward_step()
 
+    def get_run_entries(self, run_id, columns: Optional[List[str]] = None):
+        columns = columns or self.column_names_of_experiments()
+        where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'run_id',
+                                                      sql_utilities.SQLOperator.EQUALS, run_id, False, False)
+        values = sql_utilities.get_column_values_filtered(self.db_connection, columns, 'params', [where_filter])
+        return values
+
     def delete_experiment(self, experiment_name: str):
         run_ids = self.get_runs_by_experiment_names([experiment_name])
         where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'experiment_name',
@@ -188,3 +195,6 @@ class Client:
             if sql_utilities.type_translation[type(value)] == 'blob':
                 table_entries[key] = pickle.dumps(value)
         return table_entries
+
+    def postprocess_db_output(self, values):
+        pass
