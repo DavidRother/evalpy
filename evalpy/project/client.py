@@ -14,7 +14,6 @@ class Client:
         self.experiment_name = 'default'
         self.database_file = 'database.db'
         self.db_connection = None
-        self.cursor = None
         self.active_run_id = None
         self.run_entry_dict = None
         self.run_step_entry_dicts = None
@@ -45,7 +44,6 @@ class Client:
         self.project_name = name
         os.makedirs(os.path.join(root, name), exist_ok=True)
         self.db_connection = sql_utilities.establish_connection(os.path.join(root, name, self.database_file))
-        self.cursor = self.db_connection.cursor()
 
     def start_run(self, experiment_name: Optional[str] = None):
         """
