@@ -119,6 +119,18 @@ class Client:
         if step_forward:
             self.forward_step()
 
+    def commit_current_run_progress(self):
+        """
+        Commit all current entries in the run to the database
+
+        """
+        if self.active_run_id is None:
+            raise Exception("No active run ongoing")
+        for entry in self.run_step_entry_dicts[:-1]:
+            sql_utilities.add_row_to_run_table(self.db_connection, self.active_run_id, entry)
+        self.db_connection.commit()
+        self.run_step_entry_dicts = [{}]
+
     def get_run_entries(self, run_id, columns: Optional[List[str]] = None):
         columns = columns or self.column_names_of_experiments()
         where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'run_id',
