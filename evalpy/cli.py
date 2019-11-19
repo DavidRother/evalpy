@@ -12,7 +12,8 @@ def cli():
 
 
 @cli.command()
-def run():
+@click.option("--path", "-p", default=None, type=click.STRING)
+def run(path):
     my_path = os.path.realpath(__file__)
     dir_name = os.path.dirname(my_path)
     interface_file = os.path.join(dir_name, 'visualization/interface.ui')
@@ -20,6 +21,8 @@ def run():
     app = QtWidgets.QApplication(sys.argv)
     window = MyWindow(interface_file, icon_path)
     window.show()
+    if path is not None:
+        window.set_project_database(path)
     sys.exit(app.exec_())
 
 

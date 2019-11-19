@@ -64,6 +64,9 @@ class MyWindow(QtWidgets.QMainWindow):
         directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory', options=options))
         if not directory:
             return
+        self.set_project_database(directory)
+
+    def set_project_database(self, directory):
         name = self.backend.load_database(directory)
         self.label_project_name.setText(name)
         experiment_names = self.backend.get_experiment_names()
@@ -315,19 +318,19 @@ class MyWindow(QtWidgets.QMainWindow):
         plot_widget: pg.PlotWidget = self.plot_widget
         plot_widget.clear()
         scatter = pg.ScatterPlotItem(pen=pg.mkPen(width=5, color='r'), symbol='o', size=1)
-        transformed_x = self._transform_data_and_axis(plot_widget, x_values, x_axis_name)
-        transformed_y = self._transform_data_and_axis(plot_widget, y_values, y_axis_name)
+        transformed_x = self._transform_data_and_axis(plot_widget, x_values, 'bottom', x_axis_name)
+        transformed_y = self._transform_data_and_axis(plot_widget, y_values, 'left', y_axis_name)
         plot_widget.addItem(scatter)
         try:
             scatter.setData(transformed_x, transformed_y)
         except TypeError as e:
             print(e)
 
-    def _transform_data_and_axis(self, plot_widget, values, axis_name):
+    def _transform_data_and_axis(self, plot_widget, values, axis_side, axis_name):
         if isinstance(values[0], str):
-            return self._prepare_string_axis(plot_widget, 'bottom', values, axis_name)
+            return self._prepare_string_axis(plot_widget, axis_side, values, axis_name)
         else:
-            return self._prepare_number_axis(plot_widget, 'bottom', values, axis_name)
+            return self._prepare_number_axis(plot_widget, axis_side, values, axis_name)
 
     def _prepare_plot_runs(self, run_values_list, x_axis_name, y_axis_name):
         plot_widget: pg.PlotWidget = self.plot_widget

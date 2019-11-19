@@ -14,7 +14,6 @@ class Client:
         self.experiment_name = 'default'
         self.database_file = 'database.db'
         self.db_connection = None
-        self.cursor = None
         self.active_run_id = None
         self.run_entry_dict = None
         self.run_step_entry_dicts = None
@@ -45,7 +44,6 @@ class Client:
         self.project_name = name
         os.makedirs(os.path.join(root, name), exist_ok=True)
         self.db_connection = sql_utilities.establish_connection(os.path.join(root, name, self.database_file))
-        self.cursor = self.db_connection.cursor()
 
     def start_run(self, experiment_name: Optional[str] = None):
         """
@@ -121,6 +119,25 @@ class Client:
         if step_forward:
             self.forward_step()
 
+    def commit_current_run_progress(self):
+        """
+        Commit all current entries in the run to the database
+
+        """
+        if self.active_run_id is None:
+            raise Exception("No active run ongoing")
+        for entry in self.run_step_entry_dicts[:-1]:
+            sql_utilities.add_row_to_run_table(self.db_connection, self.active_run_id, entry)
+        self.db_connection.commit()
+        self.run_step_entry_dicts = [{}]
+
+    def get_run_entries(self, run_id, columns: Optional[List[str]] = None):
+        columns = columns or self.column_names_of_experiments()
+        where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'run_id',
+                                                      sql_utilities.SQLOperator.EQUALS, run_id, False, False)
+        values = sql_utilities.get_column_values_filtered(self.db_connection, columns, 'params', [where_filter])
+        return values
+
     def delete_experiment(self, experiment_name: str):
         run_ids = self.get_runs_by_experiment_names([experiment_name])
         where_filter = sql_utilities.sql_where_filter(sql_utilities.SQLJunction.NONE, 'experiment_name',
@@ -185,6 +202,9 @@ class Client:
     @staticmethod
     def _convert_dict(table_entries: Dict):
         for key, value in table_entries.items():
-            if sql_utilities.type_translation[value] == 'blob':
+            if sql_utilities.type_translation[type(value)] == 'blob':
                 table_entries[key] = pickle.dumps(value)
         return table_entries
+
+    def postprocess_db_output(self, values):
+        pass
