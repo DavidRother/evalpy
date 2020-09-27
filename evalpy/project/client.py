@@ -144,7 +144,7 @@ class Client:
                                                       sql_utilities.SQLOperator.EQUALS, experiment_name, False, False)
         sql_utilities.delete_rows(self.db_connection, 'params', [where_filter])
         for run_id in run_ids:
-            sql_utilities.delete_table(self.db_connection, run_id)
+            sql_utilities.delete_table(self.db_connection, run_id[0])
         self.db_connection.commit()
 
     def delete_run(self, run_id):
