@@ -10,6 +10,8 @@ import numpy as np
 
 
 class MyWindow(QtWidgets.QMainWindow):
+    
+    # For the production ready version see: https://realpython.com/qt-designer-python/ to not use the .ui file anymore
 
     def __init__(self, file_path='interface.ui', icon_path='icons8-flip-chart-96.png'):
         QtWidgets.QMainWindow.__init__(self)
